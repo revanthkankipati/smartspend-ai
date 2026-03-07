@@ -3,16 +3,22 @@ import { useStore } from '../context/StoreContext';
 import { formatCurrency } from '../utils/helpers';
 
 export default function DashboardCards() {
-  const { totalSpending, remainingBudget, healthScore, averageDaily, budget } = useStore();
+  const { totalSpending, remainingBudget, healthScore, averageDaily, budget, spendingChangePercent, prevMonthSpending } = useStore();
+
+  const spendingDiffText = spendingChangePercent > 0 
+    ? `+${spendingChangePercent}% vs last month` 
+    : spendingChangePercent < 0 
+      ? `${spendingChangePercent}% vs last month` 
+      : 'Same as last month';
 
   const cards = [
     {
       title: 'Total Spending',
       value: formatCurrency(totalSpending),
       icon: Wallet,
-      trend: totalSpending > budget * 0.6 ? 'up' : 'down',
-      trendText: totalSpending > budget * 0.6 ? 'Above average' : 'On track',
-      color: 'primary'
+      trend: spendingChangePercent > 0 ? 'up' : 'down',
+      trendText: spendingDiffText,
+      color: spendingChangePercent > 0 ? 'danger' : 'success' 
     },
     {
       title: 'Remaining Budget',

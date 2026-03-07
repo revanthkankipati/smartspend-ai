@@ -69,10 +69,26 @@ router.post('/sample', async (req, res) => {
     { name: 'Metro Card', amount: 500, category: 'Transport', date: '2026-03-01', notes: 'Recharge' },
     { name: 'Electricity Bill', amount: 1200, category: 'Bills', date: '2026-03-01', notes: 'Monthly' },
     { name: 'Swiggy', amount: 280, category: 'Food', date: '2026-02-28', notes: 'Snacks' },
-    { name: 'Amazon', amount: 899, category: 'Shopping', date: '2026-02-27', notes: 'Keyboard' }
+    { name: 'Amazon', amount: 899, category: 'Shopping', date: '2026-02-27', notes: 'Keyboard' },
+    { name: 'Groceries', amount: 1500, category: 'Food', date: '2026-02-25', notes: 'Supermarket' },
+    { name: 'Movie Ticket', amount: 300, category: 'Entertainment', date: '2026-02-20', notes: 'Weekend' }
   ];
   try {
+    await Transaction.deleteMany({}); // Clear existing records first
     const inserted = await Transaction.insertMany(samples);
+    res.json(inserted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// POST /api/transactions/bulk - insert an array of user-uploaded records
+router.post('/bulk', async (req, res) => {
+  try {
+    const transactions = req.body;
+    if (!Array.isArray(transactions)) {
+      return res.status(400).json({ error: 'Expected an array of transactions' });
+    }
+    const inserted = await Transaction.insertMany(transactions);
     res.json(inserted);
   } catch (err) {
     res.status(500).json({ error: err.message });

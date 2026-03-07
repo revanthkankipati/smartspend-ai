@@ -30,12 +30,16 @@ app.use("/api/budget", budgetRouter);
 app.use("/api/dashboard", dashboardRouter);
 const statementRouter = require("./routes/statement");
 app.use("/api/statement", statementRouter);
+const uploadRouter = require("./routes/upload");
+app.use("/api/upload", uploadRouter);
+const chatRouter = require("./routes/chat");
+app.use("/api/chat", chatRouter);
 
 // simple health/root endpoint
 app.get('/', (req, res) => {
   res.send('SmartSpend API running');
 });
 
-app.listen(5000, () => {
-  console.log("Server running on http://localhost:5000");
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
 });

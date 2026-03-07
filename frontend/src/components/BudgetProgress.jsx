@@ -1,10 +1,26 @@
+import { useState, useEffect } from 'react';
 import { Target, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency } from '../utils/helpers';
 
 export default function BudgetProgress() {
   const { totalSpending, budget, budgetPercent, setBudget } = useStore();
-  
+  const [localBudget, setLocalBudget] = useState(budget);
+
+  useEffect(() => {
+    setLocalBudget(budget);
+  }, [budget]);
+
+  const handleBudgetChange = (e) => {
+    setLocalBudget(Math.max(0, parseInt(e.target.value) || 0));
+  };
+
+  const handleBudgetSubmit = () => {
+    if (localBudget !== budget) {
+      setBudget(localBudget);
+    }
+  };
+
   const getStatusColor = () => {
     if (budgetPercent >= 85) return 'danger';
     if (budgetPercent >= 60) return 'warning';
@@ -38,8 +54,9 @@ export default function BudgetProgress() {
             <input
               type="number"
               id="budget"
-              value={budget}
-              onChange={(e) => setBudget(Math.max(0, parseInt(e.target.value) || 0))}
+              value={localBudget}
+              onChange={handleBudgetChange}
+              onBlur={handleBudgetSubmit}
               min="0"
               step="1000"
             />

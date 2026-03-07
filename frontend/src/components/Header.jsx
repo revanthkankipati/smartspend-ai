@@ -4,8 +4,7 @@ import { Wallet, LayoutDashboard, Receipt, BarChart3, Settings, Menu, X } from '
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: Receipt },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'settings', label: 'Settings', icon: Settings }
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 }
 ];
 
 export default function Header({ activeTab, setActiveTab }) {

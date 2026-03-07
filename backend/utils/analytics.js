@@ -4,73 +4,120 @@ function totalSpending(transactions) {
   return transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 }
 
-function categoryBreakdown(transactions) {
+function categoryBreakdownArray(transactions) {
   const breakdown = {};
   transactions.forEach(t => {
     const cat = t.category || 'Other';
     breakdown[cat] = (breakdown[cat] || 0) + (t.amount || 0);
   });
-  return breakdown;
+  return Object.keys(breakdown).map(cat => ({ category: cat, amount: breakdown[cat] }));
 }
 
-function weeklySpending(transactions) {
-  // week number within month (1-based)
-  const weeks = {};
+function weeklySpendingArray(transactions) {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekData = days.map(day => ({ day, amount: 0 }));
+  
   transactions.forEach(t => {
-    const d = new Date(t.date);
-    const weekNum = Math.floor((d.getDate() - 1) / 7) + 1;
-    weeks[weekNum] = (weeks[weekNum] || 0) + (t.amount || 0);
+    if (!t.date) return;
+    const date = new Date(t.date);
+    if (isNaN(date.getTime())) return;
+    const dayIndex = date.getDay();
+    weekData[dayIndex].amount += (t.amount || 0);
   });
-  // convert to array of { week: n, amount }
-  const result = Object.keys(weeks)
-    .sort((a, b) => a - b)
-    .map(w => ({ week: Number(w), amount: weeks[w] }));
-  return result;
+  
+  return weekData;
 }
 
-function healthScore(totalSpending, monthlyBudget) {
-  if (monthlyBudget === 0) return 0;
-  let score = 100 - (totalSpending / monthlyBudget) * 60;
+function monthlySpendingArray(transactions) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthData = months.map(month => ({ month, amount: 0 }));
+  
+  transactions.forEach(t => {
+    if (!t.date) return;
+    const date = new Date(t.date);
+    if (isNaN(date.getTime())) return;
+    const monthIndex = date.getMonth();
+    monthData[monthIndex].amount += (t.amount || 0);
+  });
+  
+  // Only return months that have some spending to keep the chart clean
+  return monthData.filter(m => m.amount > 0);
+}
+
+function healthScoreCalc(total, budget) {
+  if (!budget || budget <= 0) return 0;
+  let score = 100 - (total / budget) * 60;
   if (score < 0) score = 0;
   if (score > 100) score = 100;
   return Math.round(score);
 }
 
-function generateInsights(totalSpending, categoryData, weeklyData, monthlyBudget) {
+function generateInsights(total, prevTotal, catBreakdown, budget) {
   const insights = [];
-  // rule 1: food spending > 40%
-  const food = categoryData['Food'] || 0;
-  if (totalSpending > 0 && food / totalSpending > 0.4) {
-    insights.push('Food spending is unusually high');
+  
+  // Find Food spending
+  const foodCat = catBreakdown.find(c => c.category === 'Food');
+  const foodSpending = foodCat ? foodCat.amount : 0;
+  
+  // Rule 1: If food spending > 40% of total -> alert user.
+  if (total > 0 && (foodSpending / total) > 0.40) {
+    insights.push("Food spending is unusually high! It accounts for over 40% of your total expenditures.");
   }
-  // rule 2: weekly spending increasing two weeks in a row
-  if (weeklyData.length >= 2) {
-    const len = weeklyData.length;
-    if (weeklyData[len - 1].amount > weeklyData[len - 2].amount) {
-      insights.push('Spending trend increasing');
+  
+  // Rule 2: Budget constraints
+  if (budget > 0 && total >= budget) {
+    insights.push("Warning: You have exceeded your monthly budget.");
+  } else if (budget > 0 && total > budget * 0.8) {
+    insights.push("Alert: You have used over 80% of your budget for this month.");
+  }
+
+  // Rule 3: Month over month comparison
+  if (prevTotal > 0) {
+    const diff = total - prevTotal;
+    const percentChange = (diff / prevTotal) * 100;
+    if (percentChange > 20) {
+      insights.push(`Your spending has increased by ${Math.round(percentChange)}% compared to last month!`);
+    } else if (percentChange < -10) {
+      insights.push(`Great job! Your spending has decreased by ${Math.abs(Math.round(percentChange))}% compared to last month.`);
     }
   }
+  
+  // Default insight
+  if (insights.length === 0) {
+    insights.push("Your spending patterns look stable and healthy.");
+  }
+  
   return insights;
 }
 
-function calculateDashboard(transactions, monthlyBudget) {
-  const total = totalSpending(transactions);
-  const breakdown = categoryBreakdown(transactions);
-  const weekly = weeklySpending(transactions);
-  const score = healthScore(total, monthlyBudget);
+function calculateDashboard(currentMonthTransactions, prevMonthTransactions, monthlyBudget, allTransactions = []) {
+  const total = totalSpending(currentMonthTransactions);
+  const prevTotal = totalSpending(prevMonthTransactions);
+  const catBreakdown = categoryBreakdownArray(currentMonthTransactions);
+  const weekly = weeklySpendingArray(currentMonthTransactions);
+  const monthly = monthlySpendingArray(allTransactions);
+  const score = healthScoreCalc(total, monthlyBudget);
   const remaining = monthlyBudget - total;
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+  
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const avgDaily = Math.round(daysInMonth ? total / daysInMonth : 0);
-  const insights = generateInsights(total, breakdown, weekly, monthlyBudget);
+  
+  const insights = generateInsights(total, prevTotal, catBreakdown, monthlyBudget);
+
+  const spendingChangePercent = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
 
   return {
     totalSpending: total,
     remainingBudget: remaining,
     avgDailySpending: avgDaily,
     healthScore: score,
-    categoryBreakdown: breakdown,
+    categoryBreakdown: catBreakdown,
     weeklySpending: weekly,
-    insights
+    monthlySpending: monthly,
+    insights: insights,
+    prevMonthSpending: prevTotal,
+    spendingChangePercent: spendingChangePercent
   };
 }
 

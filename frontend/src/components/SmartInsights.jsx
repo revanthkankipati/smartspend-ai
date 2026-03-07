@@ -1,25 +1,29 @@
 import { Lightbulb, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
-import { generateInsights } from '../utils/helpers';
 
 export default function SmartInsights() {
-  const { transactions, budget } = useStore();
-  const insights = generateInsights(transactions, budget);
+  const { transactions, insights } = useStore();
 
   const getIcon = (type) => {
     switch (type) {
-      case 'warning': return AlertCircle;
-      case 'success': return CheckCircle;
-      case 'tip': return Lightbulb;
-      default: return TrendingUp;
+      case 'warning':
+      case 'danger':
+        return AlertCircle;
+      case 'success': 
+        return CheckCircle;
+      case 'tip': 
+        return Lightbulb;
+      default: 
+        return TrendingUp;
     }
   };
 
   const getIconColor = (type) => {
     switch (type) {
-      case 'warning': return '#ef4444';
+      case 'warning': return '#f59e0b';
+      case 'danger': return '#ef4444';
       case 'success': return '#10b981';
-      case 'tip': return '#f59e0b';
+      case 'tip': return '#8b5cf6';
       default: return '#3b82f6';
     }
   };

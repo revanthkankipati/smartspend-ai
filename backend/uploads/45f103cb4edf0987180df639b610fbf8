@@ -1,0 +1,22 @@
+[
+{"date":"2026-03-01","amount":150,"category":"Food","description":"Swiggy"},
+{"date":"2026-03-01","amount":89,"category":"Transport","description":"Uber"},
+{"date":"2026-03-02","amount":499,"category":"Shopping","description":"Amazon"},
+{"date":"2026-03-02","amount":220,"category":"Food","description":"Zomato"},
+{"date":"2026-03-03","amount":100,"category":"Transport","description":"Metro card"},
+{"date":"2026-03-03","amount":1200,"category":"Bills","description":"Electricity"},
+{"date":"2026-03-04","amount":300,"category":"Food","description":"Restaurant"},
+{"date":"2026-03-04","amount":80,"category":"Transport","description":"Bus"},
+{"date":"2026-03-05","amount":450,"category":"Entertainment","description":"Movie"},
+{"date":"2026-03-05","amount":200,"category":"Food","description":"Lunch"},
+{"date":"2026-03-06","amount":350,"category":"Food","description":"Swiggy"},
+{"date":"2026-03-06","amount":700,"category":"Shopping","description":"Flipkart"},
+{"date":"2026-03-07","amount":120,"category":"Transport","description":"Auto"},
+{"date":"2026-03-07","amount":260,"category":"Food","description":"Dinner"},
+{"date":"2026-03-08","amount":320,"category":"Food","description":"Restaurant"},
+{"date":"2026-03-08","amount":450,"category":"Entertainment","description":"Bowling"},
+{"date":"2026-03-09","amount":150,"category":"Transport","description":"Cab"},
+{"date":"2026-03-09","amount":210,"category":"Food","description":"Lunch"},
+{"date":"2026-03-10","amount":120,"category":"Transport","description":"Bus"},
+{"date":"2026-03-10","amount":600,"category":"Shopping","description":"Shoes"}
+]
