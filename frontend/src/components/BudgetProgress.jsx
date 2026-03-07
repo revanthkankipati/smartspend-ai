@@ -1,0 +1,83 @@
+import { Target, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
+import { formatCurrency } from '../utils/helpers';
+
+export default function BudgetProgress() {
+  const { totalSpending, budget, budgetPercent, setBudget } = useStore();
+  
+  const getStatusColor = () => {
+    if (budgetPercent >= 85) return 'danger';
+    if (budgetPercent >= 60) return 'warning';
+    return 'success';
+  };
+
+  const getStatusIcon = () => {
+    if (budgetPercent >= 85) return AlertTriangle;
+    if (budgetPercent >= 60) return Target;
+    return CheckCircle;
+  };
+
+  const getStatusMessage = () => {
+    if (budgetPercent >= 100) return 'Budget exceeded! Consider reducing expenses.';
+    if (budgetPercent >= 85) return 'Warning: Approaching budget limit!';
+    if (budgetPercent >= 60) return 'You\'re doing okay, but watch your spending.';
+    return 'Great job! You\'re well within budget.';
+  };
+
+  const StatusIcon = getStatusIcon();
+  const statusColor = getStatusColor();
+
+  return (
+    <div className="card budget-card">
+      <div className="budget-header">
+        <h3 className="card-heading">Monthly Budget</h3>
+        <div className="budget-input-group">
+          <label htmlFor="budget">Set Budget:</label>
+          <div className="budget-input-wrapper">
+            <span>₹</span>
+            <input
+              type="number"
+              id="budget"
+              value={budget}
+              onChange={(e) => setBudget(Math.max(0, parseInt(e.target.value) || 0))}
+              min="0"
+              step="1000"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="budget-stats">
+        <div className="budget-stat">
+          <span className="stat-label">Spent</span>
+          <span className="stat-value">{formatCurrency(totalSpending)}</span>
+        </div>
+        <div className="budget-stat">
+          <span className="stat-label">Budget</span>
+          <span className="stat-value">{formatCurrency(budget)}</span>
+        </div>
+        <div className="budget-stat">
+          <span className="stat-label">Remaining</span>
+          <span className={`stat-value ${statusColor}`}>
+            {formatCurrency(Math.max(0, budget - totalSpending))}
+          </span>
+        </div>
+      </div>
+
+      <div className="progress-container">
+        <div className="progress-bar">
+          <div 
+            className={`progress-fill ${statusColor}`}
+            style={{ width: `${Math.min(100, budgetPercent)}%` }}
+          />
+        </div>
+        <span className="progress-text">{budgetPercent}%</span>
+      </div>
+
+      <div className={`budget-status ${statusColor}`}>
+        <StatusIcon size={18} />
+        <span>{getStatusMessage()}</span>
+      </div>
+    </div>
+  );
+}
