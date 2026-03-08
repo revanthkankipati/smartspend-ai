@@ -34,6 +34,8 @@ const uploadRouter = require("./routes/upload");
 app.use("/api/upload", uploadRouter);
 const chatRouter = require("./routes/chat");
 app.use("/api/chat", chatRouter);
+const formatterRouter = require("./routes/formatter");
+app.use("/api/format-transactions", formatterRouter);
 
 // simple health/root endpoint
 app.get('/', (req, res) => {

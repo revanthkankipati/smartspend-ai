@@ -1,18 +1,39 @@
 import { useState } from 'react';
 import { Pencil, Trash2, Check, X, Filter } from 'lucide-react';
+import { subDays, parseISO, startOfWeek } from 'date-fns';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { categories, categoryColors } from '../data/sampleTransactions';
 
 export default function TransactionTable() {
-  const { transactions, deleteTransaction, updateTransaction } = useStore();
+  const { transactions, deleteTransaction, updateTransaction, timeFilter, setTimeFilter } = useStore();
   const [filterCategory, setFilterCategory] = useState('All');
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
 
+  const getFilteredByTime = () => {
+    const now = new Date();
+    if (timeFilter === '7 Days') {
+      const sevenDaysAgo = subDays(now, 7);
+      return transactions.filter(t => parseISO(t.date) >= sevenDaysAgo);
+    }
+    if (timeFilter === 'Weekly') {
+      const weekStart = startOfWeek(now);
+      return transactions.filter(t => parseISO(t.date) >= weekStart);
+    }
+    if (timeFilter === 'Monthly') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return transactions.filter(t => parseISO(t.date) >= monthStart);
+    }
+    return transactions;
+  };
+
+  const timeFiltered = getFilteredByTime();
   const filteredTransactions = filterCategory === 'All'
-    ? transactions
-    : transactions.filter(t => t.category === filterCategory);
+    ? timeFiltered
+    : timeFiltered.filter(t => t.category === filterCategory);
+
+  const totalFilteredAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   const startEdit = (transaction) => {
     setEditingId(transaction.id);
@@ -51,18 +72,38 @@ export default function TransactionTable() {
   return (
     <div className="card transaction-table-card">
       <div className="table-header">
-        <h3 className="card-heading">Recent Transactions</h3>
-        <div className="filter-group">
-          <Filter size={16} />
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            <option value="All">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+        <div className="table-title-group">
+          <h3 className="card-heading">Historical Transactions</h3>
+          <div className="time-filter-toggle">
+            {['All', '7 Days', 'Weekly', 'Monthly'].map(period => (
+              <button 
+                key={period}
+                className={`filter-btn ${timeFilter === period ? 'active' : ''}`}
+                onClick={() => setTimeFilter(period)}
+              >
+                {period}
+              </button>
             ))}
-          </select>
+          </div>
+        </div>
+        
+        <div className="table-actions-group">
+          <div className="summary-stats">
+            <span className="summary-label">Total for period:</span>
+            <span className="summary-value">{formatCurrency(totalFilteredAmount)}</span>
+          </div>
+          <div className="filter-group">
+            <Filter size={16} />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="All">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

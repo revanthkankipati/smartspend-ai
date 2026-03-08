@@ -5,26 +5,36 @@ const xlsx = require('xlsx');
 // Extract generic transaction data from normalized row
 const parsePhonePeOrGenericRow = (data) => {
   const date = data.date || data.Date || data['Transaction Date'] || data['Date'] || null;
-  const amountStr = data.amount || data.Amount || data['Debit'] || null;
-  const description = data.description || data.Description || data.notes || data['Narration'] || '';
+  let amountStr = data.amount || data.Amount || data['Debit'] || data['Amount (INR)'] || null;
+  const description = data.name || data.Name || data.description || data.Description || data.notes || data['Narration'] || '';
   let category = data.category || data.Category || '';
 
-  // Auto-categorize based on PhonePe description if category is missing
-  if (!category && description) {
-    const desc = description.toLowerCase();
-    if (desc.includes('swiggy') || desc.includes('zomato') || desc.includes('restaurant') || desc.includes('lunch')) category = 'Food';
-    else if (desc.includes('uber') || desc.includes('ola') || desc.includes('metro') || desc.includes('cab')) category = 'Transport';
-    else if (desc.includes('amazon') || desc.includes('flipkart') || desc.includes('shoes') || desc.includes('clothes')) category = 'Shopping';
-    else if (desc.includes('electricity') || desc.includes('recharge')) category = 'Bills';
-    else if (desc.includes('movie') || desc.includes('concert') || desc.includes('game')) category = 'Entertainment';
+  // Clean amount string
+  if (typeof amountStr === 'string') {
+    amountStr = amountStr.replace(/[^0-9.-]/g, '');
   }
+  
+  const amount = parseFloat(amountStr);
 
-  if (date && amountStr) {
+  // Normalize category to Match Enum exactly if possible
+  const categoriesMap = {
+    'food': 'Food',
+    'transport': 'Transport',
+    'shopping': 'Shopping',
+    'bills': 'Bills',
+    'entertainment': 'Entertainment',
+    'other': 'Other'
+  };
+  
+  const normalizedCategory = categoriesMap[category.toLowerCase()] || 'Other';
+
+  if (date && !isNaN(amount)) {
     return {
       date: date,
-      amount: parseFloat(amountStr),
-      category: category,
-      description: description
+      amount: amount,
+      category: normalizedCategory,
+      name: description || 'Unnamed Transaction',
+      notes: ''
     };
   }
   return null;
@@ -35,11 +45,13 @@ const parseFile = async (filePath, fileType, fileExtension) => {
 
   if (fileType === 'application/json' || fileExtension === 'json') {
     const data = fs.readFileSync(filePath, 'utf8');
-    const parsedData = JSON.parse(data);
+    let parsedData = JSON.parse(data);
+    
+    // Support both single object and array
     if (!Array.isArray(parsedData)) {
-      throw new Error('JSON format invalid. Expected array of objects.');
+      parsedData = [parsedData];
     }
-    // Allow JSON to use the categorizer logic if categories are missing
+
     parsedData.forEach(row => {
       const parsedRow = parsePhonePeOrGenericRow(row);
       if (parsedRow) results.push(parsedRow);

@@ -1,12 +1,36 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { subDays, parseISO, startOfWeek } from 'date-fns';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency } from '../utils/helpers';
 import { categoryColors } from '../data/sampleTransactions';
 
 export default function SpendingCharts() {
-  const { transactions, categoryTotals, weeklyData, monthlyData = [] } = useStore();
+  const { transactions, categoryTotals, weeklyData, monthlyData = [], timeFilter } = useStore();
 
-  const pieData = Object.entries(categoryTotals).map(([name, value]) => ({
+  const getFilteredTransactions = () => {
+    const now = new Date();
+    if (timeFilter === '7 Days') {
+      const sevenDaysAgo = subDays(now, 7);
+      return transactions.filter(t => parseISO(t.date) >= sevenDaysAgo);
+    }
+    if (timeFilter === 'Weekly') {
+      const weekStart = startOfWeek(now);
+      return transactions.filter(t => parseISO(t.date) >= weekStart);
+    }
+    if (timeFilter === 'Monthly') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return transactions.filter(t => parseISO(t.date) >= monthStart);
+    }
+    return transactions;
+  };
+
+  const filteredTx = getFilteredTransactions();
+  const filteredCategoryTotals = {};
+  filteredTx.forEach(t => {
+    filteredCategoryTotals[t.category] = (filteredCategoryTotals[t.category] || 0) + t.amount;
+  });
+
+  const pieData = Object.entries(filteredCategoryTotals).map(([name, value]) => ({
     name,
     value,
     color: categoryColors[name] || '#6b7280'

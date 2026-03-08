@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Wallet, LayoutDashboard, Receipt, BarChart3, Settings, Menu, X } from 'lucide-react';
+import { Wallet, LayoutDashboard, Receipt, BarChart3, Settings, Menu, X, FileText } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: Receipt },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'formatter', label: 'Formatter', icon: FileText }
 ];
 
 export default function Header({ activeTab, setActiveTab }) {

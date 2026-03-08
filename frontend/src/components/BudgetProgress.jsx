@@ -4,7 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { formatCurrency } from '../utils/helpers';
 
 export default function BudgetProgress() {
-  const { totalSpending, budget, budgetPercent, setBudget } = useStore();
+  const { totalSpending, budget, budgetType, budgetPercent, setBudget } = useStore();
   const [localBudget, setLocalBudget] = useState(budget);
 
   useEffect(() => {
@@ -17,8 +17,12 @@ export default function BudgetProgress() {
 
   const handleBudgetSubmit = () => {
     if (localBudget !== budget) {
-      setBudget(localBudget);
+      setBudget(localBudget, budgetType);
     }
+  };
+
+  const handleTypeToggle = (type) => {
+    setBudget(budget, type);
   };
 
   const getStatusColor = () => {
@@ -34,10 +38,10 @@ export default function BudgetProgress() {
   };
 
   const getStatusMessage = () => {
-    if (budgetPercent >= 100) return 'Budget exceeded! Consider reducing expenses.';
-    if (budgetPercent >= 85) return 'Warning: Approaching budget limit!';
+    if (budgetPercent >= 100) return `Budget exceeded! Consider reducing ${budgetType} expenses.`;
+    if (budgetPercent >= 85) return `Warning: Approaching ${budgetType} budget limit!`;
     if (budgetPercent >= 60) return 'You\'re doing okay, but watch your spending.';
-    return 'Great job! You\'re well within budget.';
+    return `Great job! You're well within your ${budgetType} budget.`;
   };
 
   const StatusIcon = getStatusIcon();
@@ -46,9 +50,25 @@ export default function BudgetProgress() {
   return (
     <div className="card budget-card">
       <div className="budget-header">
-        <h3 className="card-heading">Monthly Budget</h3>
+        <div className="budget-title-area">
+          <h3 className="card-heading">{budgetType.charAt(0).toUpperCase() + budgetType.slice(1)} Budget</h3>
+          <div className="budget-toggle">
+            <button 
+              className={`toggle-btn ${budgetType === 'weekly' ? 'active' : ''}`}
+              onClick={() => handleTypeToggle('weekly')}
+            >
+              Weekly
+            </button>
+            <button 
+              className={`toggle-btn ${budgetType === 'monthly' ? 'active' : ''}`}
+              onClick={() => handleTypeToggle('monthly')}
+            >
+              Monthly
+            </button>
+          </div>
+        </div>
         <div className="budget-input-group">
-          <label htmlFor="budget">Set Budget:</label>
+          <label htmlFor="budget">Set Limit:</label>
           <div className="budget-input-wrapper">
             <span>₹</span>
             <input
@@ -58,7 +78,7 @@ export default function BudgetProgress() {
               onChange={handleBudgetChange}
               onBlur={handleBudgetSubmit}
               min="0"
-              step="1000"
+              step="100"
             />
           </div>
         </div>

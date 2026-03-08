@@ -38,11 +38,20 @@ router.get('/', async (req, res) => {
 
     let budgetDoc = await Budget.findOne();
     if (!budgetDoc) {
-      budgetDoc = await Budget.create({ monthlyAmount: 15000 });
+      budgetDoc = await Budget.create({ monthlyAmount: 15000, type: 'monthly' });
+    }
+
+    // Adjust current period based on budget type
+    let currentPeriodTx = currentMonthTx;
+    if (budgetDoc.type === 'weekly') {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0,0,0,0);
+      currentPeriodTx = all.filter(t => new Date(t.date) >= startOfWeek);
     }
 
     // Call lightweight node-based analytics engine dynamically
-    const dashboard = calculateDashboard(currentMonthTx, prevMonthTx, budgetDoc.monthlyAmount, all);
+    const dashboard = calculateDashboard(currentPeriodTx, prevMonthTx, budgetDoc.monthlyAmount, all, budgetDoc.type);
 
     res.json(dashboard);
   } catch (err) {

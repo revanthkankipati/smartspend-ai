@@ -1,59 +1,73 @@
-const { OpenAI } = require('openai');
-require('dotenv').config();
+const { generateGroqContent } = require('./groqService');
 
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-}) : null;
+const VALID_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
 
-const VALID_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'General', 'Other'];
+const CATEGORY_KEYWORDS = {
+  'Food': ['swiggy', 'zomato', 'restaurant', 'cafe', 'food', 'blinkit', 'zepto', 'grocer', 'supermarket', 'bakery'],
+  'Transport': ['uber', 'ola', 'rapido', 'metro', 'petrol', 'fuel', 'shell', 'parking', 'bus', 'train', 'irctc'],
+  'Shopping': ['amazon', 'flipkart', 'myntra', 'ajio', 'nykaa', 'zara', 'h&m', 'mall', 'shopping'],
+  'Bills': ['electricity', 'water', 'gas', 'recharge', 'jio', 'airtel', 'vi', 'broadband', 'insurance', 'rent'],
+  'Entertainment': ['netflix', 'hotstar', 'prime video', 'booking', 'movie', 'multiplex', 'theatre', 'club', 'spotify']
+};
 
-async function categorizeTransaction(description) {
-  if (!openai) {
-    // If no API key, fallback to General
-    return 'General';
+function localCategorize(name = '', fallbackCategory = 'Other') {
+  const lowercaseName = name.toLowerCase();
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => lowercaseName.includes(kw))) {
+      return category;
+    }
+  }
+  return fallbackCategory;
+}
+
+async function categorizeTransaction(name) {
+  // First try local categorization
+  const localResult = localCategorize(name);
+  if (localResult !== 'Other') {
+    return localResult;
   }
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a finacial transaction categorizer. Classify the transaction into ONE of these categories: ${VALID_CATEGORIES.join(', ')}. Return ONLY the category name and nothing else.`
-        },
-        {
-          role: 'user',
-          content: `Transaction: "${description}"`
-        }
-      ],
-      temperature: 0,
-      max_tokens: 10
-    });
-
-    const category = response.choices[0].message.content.trim();
-    if (VALID_CATEGORIES.includes(category)) {
-      return category;
+    const prompt = `Classify this financial transaction into ONE of these categories: ${VALID_CATEGORIES.join(', ')}. 
+    Return ONLY the category name and nothing else.
+    Transaction: "${name}"`;
+    
+    const category = await generateGroqContent(prompt);
+    
+    const cleanedCategory = category.trim().replace(/[*_`]/g, '');
+    
+    if (VALID_CATEGORIES.includes(cleanedCategory)) {
+      return cleanedCategory;
     }
-    return 'General';
+    return 'Other';
   } catch (error) {
-    console.error('OpenAI Categorization Error:', error.message);
-    return 'General';
+    console.error('Groq Categorization Error:', error.message);
+    return 'Other';
   }
 }
 
 async function bulkCategorize(transactions) {
-  // Batch processing (to avoid hitting rate limits on a free tier, process sequentially or in chunks)
-  // For demonstration, we'll process those with empty/General category
   const categorized = [];
 
   for (const t of transactions) {
-    if (!t.category || t.category === 'General' || t.category === '') {
-      t.category = await categorizeTransaction(t.description);
+    const name = t.name || t.description || 'Unnamed Transaction';
+    
+    if (!t.category || t.category === 'Other' || t.category === 'General' || t.category === '') {
+      t.category = await categorizeTransaction(name);
     }
-    categorized.push(t);
+    
+    const normalized = {
+      name: name,
+      amount: parseFloat(t.amount) || 0,
+      category: VALID_CATEGORIES.includes(t.category) ? t.category : 'Other',
+      date: t.date || new Date().toISOString().split('T')[0],
+      notes: t.notes || ''
+    };
+    
+    categorized.push(normalized);
   }
 
   return categorized;
 }
 
-module.exports = { categorizeTransaction, bulkCategorize };
+module.exports = { categorizeTransaction, localCategorize, bulkCategorize };

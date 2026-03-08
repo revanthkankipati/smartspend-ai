@@ -4,12 +4,18 @@ export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(amount);
 };
 
 export const formatDate = (dateString) => {
-  return format(parseISO(dateString), 'dd MMM yyyy');
+  if (!dateString) return '';
+  try {
+    return format(parseISO(dateString), 'dd MMM yyyy');
+  } catch (e) {
+    return dateString;
+  }
 };
 
 export const generateId = () => {

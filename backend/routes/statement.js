@@ -2,22 +2,14 @@ const express = require('express');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const { calculateDashboard } = require('../utils/analytics');
-
-let openai;
-if (process.env.OPENAI_API_KEY) {
-  const OpenAI = require('openai');
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+const { generateGroqContent } = require('../utils/groqService');
 
 const router = express.Router();
 
-// helper to parse simple CSV/statement if OpenAI key is not provided
 function simpleParse(text) {
-  // very naive: split lines, look for date and amount patterns
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
   const result = [];
   lines.forEach(line => {
-    // assume comma-separated or tab-separated
     const parts = line.split(/[\t,]+/);
     if (parts.length >= 2) {
       const date = parts[0];
@@ -36,29 +28,19 @@ router.post('/parse', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'missing text' });
 
   let transactions = [];
-  if (openai) {
+  try {
     const prompt = `Extract transactions from the following bank statement.\n` +
-      `Return a JSON array of objects with keys name,amount,category,date,notes.\n` +
+      `Return a JSON object with a key 'transactions' containing an array of objects with keys name,amount,category,date,notes.\n` +
       `Use categories Food,Transport,Shopping,Entertainment,Subscriptions,Other.\n` +
       `Statement:\n"""${text}"""`;
-    try {
-      const reply = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1000,
-      });
-      const answer = reply.choices[0].message.content;
-      transactions = JSON.parse(answer);
-    } catch (err) {
-      console.error('OpenAI parse error', err);
-      // fallback
-      transactions = simpleParse(text);
-    }
-  } else {
+    
+    const data = await generateGroqContent(prompt, true);
+    transactions = data.transactions || (Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Groq parse error', err);
     transactions = simpleParse(text);
   }
 
-  // insert into DB and compute analytics for current month
   try {
     const inserted = await Transaction.insertMany(transactions);
     const now = new Date();
@@ -78,26 +60,17 @@ router.post('/parse', async (req, res) => {
   }
 });
 
-// conversational helper endpoint
 router.post('/chat', async (req, res) => {
-  if (!openai) {
-    return res.status(400).json({ error: 'OpenAI API key not configured' });
-  }
-  const { prompt, transactions = [], budget = 0 } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'missing prompt' });
+  const { prompt: userPrompt, transactions = [], budget = 0 } = req.body;
+  if (!userPrompt) return res.status(400).json({ error: 'missing prompt' });
 
   try {
-    const systemMsg = `You are a financial assistant. The user will supply a prompt and optional transactions data for context.`;
-    const userMsg = `Transactions: ${JSON.stringify(transactions).slice(0,1000)}\nBudget: ${budget}\nUser question: ${prompt}`;
-    const reply = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemMsg },
-        { role: 'user', content: userMsg },
-      ],
-      max_tokens: 500,
-    });
-    const text = reply.choices[0].message.content;
+    const prompt = `You are a financial assistant. The user will supply a prompt and optional transactions data for context.
+    Transactions: ${JSON.stringify(transactions).slice(0,1000)}
+    Budget: ${budget}
+    User question: ${userPrompt}`;
+
+    const text = await generateGroqContent(prompt);
     res.json({ text });
   } catch (err) {
     console.error('chat error', err);

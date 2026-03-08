@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
   try {
     let data = await Budget.findOne();
     if (!data) {
-      data = await Budget.create({ monthlyAmount: 15000 });
+      data = await Budget.create({ monthlyAmount: 15000, type: 'monthly' });
     }
     res.json(data);
   } catch (err) {
@@ -18,13 +18,14 @@ router.get('/', async (req, res) => {
 
 // PUT /api/budget
 router.put('/', async (req, res) => {
-  const { monthlyAmount } = req.body;
+  const { monthlyAmount, type } = req.body;
   try {
     let data = await Budget.findOne();
     if (!data) {
-      data = await Budget.create({ monthlyAmount });
+      data = await Budget.create({ monthlyAmount, type: type || 'monthly' });
     } else {
-      data.monthlyAmount = monthlyAmount;
+      if (monthlyAmount !== undefined) data.monthlyAmount = monthlyAmount;
+      if (type !== undefined) data.type = type;
       await data.save();
     }
     res.json(data);

@@ -9,17 +9,25 @@ import HealthScore from './components/HealthScore';
 import TransactionTable from './components/TransactionTable';
 import SmartInsights from './components/SmartInsights';
 import ChatAssistant from './components/ChatAssistant';
-import { Download, Trash2, Database } from 'lucide-react';
+import TransactionFormatter from './components/TransactionFormatter';
+import { Download, Trash2, Database, Loader2, CheckCircle2 } from 'lucide-react';
 import './App.css';
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { loadSampleData, uploadCustomData, clearAllData, transactions } = useStore();
+  const [successMsg, setSuccessMsg] = useState('');
+  const { 
+    loadSampleData, 
+    uploadCustomData, 
+    clearAllData, 
+    transactions,
+    isUploading,
+    isProcessing
+  } = useStore();
 
   const handleDownloadDataset = () => {
-    // Generate the JSON blob map and trigger download
-    const cleanData = transactions.map(({ date, amount, category, description }) => ({
-      date, amount, category, description
+    const cleanData = transactions.map(({ date, amount, category, name }) => ({
+      date, amount, category, name
     }));
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(cleanData, null, 2));
     const dlAnchorElem = document.createElement('a');
@@ -28,11 +36,40 @@ function Dashboard() {
     dlAnchorElem.click();
   };
 
+  const handleUploadClick = () => {
+    document.getElementById('file-upload').click();
+  };
+
+  const onFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const ok = await uploadCustomData(file);
+      if (ok) {
+        setSuccessMsg('Transactions uploaded successfully!');
+        setTimeout(() => setSuccessMsg(''), 3000);
+      }
+      e.target.value = null; // reset input
+    }
+  };
+
+  const onSampleDataClick = async () => {
+    await loadSampleData();
+    setSuccessMsg('Sample data loaded!');
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
   return (
     <div className="app">
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="main-content">
+        {successMsg && (
+          <div className="alert-banner">
+            <CheckCircle2 size={18} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         <div className="welcome-section">
           <div className="welcome-text">
             <h1>Welcome to SmartSpend AI</h1>
@@ -44,21 +81,41 @@ function Dashboard() {
               id="file-upload" 
               accept=".json,.csv"
               style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  uploadCustomData(file);
-                  e.target.value = null; // reset input
-                }
-              }}
+              onChange={onFileUpload}
             />
-            <button className="btn btn-primary" onClick={() => document.getElementById('file-upload').click()}>
-              <Download size={18} />
-              Upload Transactions
+            <button 
+              className="btn btn-primary" 
+              onClick={handleUploadClick}
+              disabled={isUploading || isProcessing}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Upload Transactions
+                </>
+              )}
             </button>
-            <button className="btn btn-secondary" onClick={loadSampleData}>
-              <Download size={18} />
-              Load Sample Data
+            <button 
+              className="btn btn-secondary" 
+              onClick={onSampleDataClick}
+              disabled={isUploading || isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Load Sample Data
+                </>
+              )}
             </button>
             {transactions.length > 0 && (
               <>
@@ -66,7 +123,7 @@ function Dashboard() {
                   <Database size={18} />
                   Export JSON
                 </button>
-                <button className="btn btn-outline" onClick={clearAllData}>
+                <button className="btn btn-outline" onClick={clearAllData} disabled={isUploading || isProcessing}>
                   <Trash2 size={18} />
                   Clear All
                 </button>
@@ -111,6 +168,10 @@ function Dashboard() {
             <ExpenseForm />
             <TransactionTable />
           </>
+        )}
+
+        {activeTab === 'formatter' && (
+          <TransactionFormatter />
         )}
       </main>
 

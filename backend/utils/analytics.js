@@ -52,7 +52,7 @@ function healthScoreCalc(total, budget) {
   return Math.round(score);
 }
 
-function generateInsights(total, prevTotal, catBreakdown, budget) {
+function generateInsights(total, prevTotal, catBreakdown, budget, budgetType = 'monthly') {
   const insights = [];
   
   // Find Food spending
@@ -61,40 +61,46 @@ function generateInsights(total, prevTotal, catBreakdown, budget) {
   
   // Rule 1: If food spending > 40% of total -> alert user.
   if (total > 0 && (foodSpending / total) > 0.40) {
-    insights.push("Food spending is unusually high! It accounts for over 40% of your total expenditures.");
+    insights.push(`Food spending is unusually high! It accounts for over 40% of your ${budgetType} expenditures.`);
   }
   
   // Rule 2: Budget constraints
   if (budget > 0 && total >= budget) {
-    insights.push("Warning: You have exceeded your monthly budget.");
+    insights.push(`Warning: You have exceeded your ${budgetType} budget.`);
   } else if (budget > 0 && total > budget * 0.8) {
-    insights.push("Alert: You have used over 80% of your budget for this month.");
+    insights.push(`Alert: You have used over 80% of your budget for this ${budgetType === 'weekly' ? 'week' : 'month'}.`);
   }
 
-  // Rule 3: Month over month comparison
+  // Rule 3: Period over period comparison
   if (prevTotal > 0) {
     const diff = total - prevTotal;
     const percentChange = (diff / prevTotal) * 100;
     if (percentChange > 20) {
-      insights.push(`Your spending has increased by ${Math.round(percentChange)}% compared to last month!`);
+      insights.push(`Your spending has increased by ${Math.round(percentChange)}% compared to the previous ${budgetType === 'weekly' ? 'week' : 'month'}!`);
     } else if (percentChange < -10) {
-      insights.push(`Great job! Your spending has decreased by ${Math.abs(Math.round(percentChange))}% compared to last month.`);
+      insights.push(`Great job! Your spending has decreased by ${Math.abs(Math.round(percentChange))}% compared to the previous ${budgetType === 'weekly' ? 'week' : 'month'}.`);
     }
   }
   
   // Default insight
   if (insights.length === 0) {
-    insights.push("Your spending patterns look stable and healthy.");
+    insights.push(`Your ${budgetType} spending patterns look stable and healthy.`);
   }
   
   return insights;
 }
 
-function calculateDashboard(currentMonthTransactions, prevMonthTransactions, monthlyBudget, allTransactions = []) {
+function calculateDashboard(currentMonthTransactions, prevMonthTransactions, monthlyBudget, allTransactions = [], budgetType = 'monthly') {
   const total = totalSpending(currentMonthTransactions);
   const prevTotal = totalSpending(prevMonthTransactions);
   const catBreakdown = categoryBreakdownArray(currentMonthTransactions);
-  const weekly = weeklySpendingArray(currentMonthTransactions);
+  const weekly = weeklySpendingArray(allTransactions.filter(t => {
+    // Show last 7 days in weekly chart for better context
+    const d = new Date(t.date);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return d >= sevenDaysAgo;
+  }));
   const monthly = monthlySpendingArray(allTransactions);
   const score = healthScoreCalc(total, monthlyBudget);
   const remaining = monthlyBudget - total;
@@ -103,7 +109,7 @@ function calculateDashboard(currentMonthTransactions, prevMonthTransactions, mon
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const avgDaily = Math.round(daysInMonth ? total / daysInMonth : 0);
   
-  const insights = generateInsights(total, prevTotal, catBreakdown, monthlyBudget);
+  const insights = generateInsights(total, prevTotal, catBreakdown, monthlyBudget, budgetType);
 
   const spendingChangePercent = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
 
@@ -117,7 +123,8 @@ function calculateDashboard(currentMonthTransactions, prevMonthTransactions, mon
     monthlySpending: monthly,
     insights: insights,
     prevMonthSpending: prevTotal,
-    spendingChangePercent: spendingChangePercent
+    spendingChangePercent: spendingChangePercent,
+    budgetType: budgetType
   };
 }
 

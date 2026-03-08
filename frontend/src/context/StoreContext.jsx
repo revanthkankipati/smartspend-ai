@@ -7,6 +7,10 @@ const StoreContext = createContext(null);
 export function StoreProvider({ children }) {
   const [transactions, setTransactions] = useState([]);
   const [budget, setBudget] = useState(15000);
+  const [budgetType, setBudgetType] = useState('monthly');
+  const [timeFilter, setTimeFilter] = useState('Monthly'); // 'All', '7 Days', 'Weekly', 'Monthly'
+  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     totalSpending: 0,
     remainingBudget: 0,
@@ -19,19 +23,21 @@ export function StoreProvider({ children }) {
 
   const loadData = useCallback(async () => {
     try {
-      const txRes = await fetch(`${API_URL}/transactions`);
-      const txData = await txRes.json();
-      setTransactions((txData || []).map(t => ({ ...t, id: t._id })));
-
       const budgetRes = await fetch(`${API_URL}/budget`);
       const budgetData = await budgetRes.json();
-      if (budgetData && budgetData.monthlyAmount) {
+      if (budgetData) {
          setBudget(budgetData.monthlyAmount);
+         setBudgetType(budgetData.type || 'monthly');
       }
 
       const dashRes = await fetch(`${API_URL}/dashboard`);
       const dashData = await dashRes.json();
       setDashboardData(dashData);
+
+      const txRes = await fetch(`${API_URL}/transactions`);
+      const txData = await txRes.json();
+      setTransactions((txData || []).map(t => ({ ...t, id: t._id })));
+
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -70,26 +76,37 @@ export function StoreProvider({ children }) {
     } catch (err) { console.error(err); }
   };
 
-  const updateBudget = async (newAmount) => {
+  const updateBudget = async (newAmount, newType) => {
     try {
+      const body = {};
+      if (newAmount !== undefined) body.monthlyAmount = newAmount;
+      if (newType !== undefined) body.type = newType;
+
       await fetch(`${API_URL}/budget`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ monthlyAmount: newAmount })
+        body: JSON.stringify(body)
       });
       loadData();
-      setBudget(newAmount);
+      if (newAmount !== undefined) setBudget(newAmount);
+      if (newType !== undefined) setBudgetType(newType);
     } catch (err) { console.error(err); }
   };
 
   const loadSampleData = async () => {
+    setIsProcessing(true);
     try {
       await fetch(`${API_URL}/transactions/sample`, { method: 'POST' });
-      loadData();
-    } catch (err) { console.error(err); }
+      await loadData();
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const uploadCustomData = async (file) => {
+    setIsUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -103,12 +120,14 @@ export function StoreProvider({ children }) {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to upload transactions.");
       }
-      loadData();
+      await loadData();
       return true;
     } catch (err) {
       console.error(err);
       alert(err.message);
       return false;
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -117,6 +136,45 @@ export function StoreProvider({ children }) {
       await fetch(`${API_URL}/transactions`, { method: 'DELETE' });
       loadData();
     } catch (err) { console.error(err); }
+  };
+
+  const formatTransactions = async (rawData) => {
+    try {
+      const res = await fetch(`${API_URL}/format-transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawData })
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to format transactions.");
+      }
+      return await res.json();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+      return null;
+    }
+  };
+
+  const bulkAddTransactions = async (transactions) => {
+    try {
+      const res = await fetch(`${API_URL}/transactions/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transactions)
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to upload transactions.");
+      }
+      loadData();
+      return true;
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+      return false;
+    }
   };
 
   // Map backend JSON back to what frontend components specifically expect
@@ -148,13 +206,18 @@ export function StoreProvider({ children }) {
   const value = {
     transactions,
     budget,
+    budgetType,
+    timeFilter,
     setBudget: updateBudget,
+    setTimeFilter,
     addTransaction,
     deleteTransaction,
     updateTransaction,
     loadSampleData,
     uploadCustomData,
     clearAllData,
+    formatTransactions,
+    bulkAddTransactions,
     totalSpending: dashboardData.totalSpending || 0,
     remainingBudget: dashboardData.remainingBudget || 0,
     categoryTotals,
@@ -165,7 +228,9 @@ export function StoreProvider({ children }) {
     monthlyData: dashboardData.monthlySpending || [],
     insights: mappedInsights,
     prevMonthSpending: dashboardData.prevMonthSpending || 0,
-    spendingChangePercent: dashboardData.spendingChangePercent || 0
+    spendingChangePercent: dashboardData.spendingChangePercent || 0,
+    isUploading,
+    isProcessing
   };
 
   return (
